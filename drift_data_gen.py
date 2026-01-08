@@ -1,47 +1,71 @@
-# drift_data_gen.py
 import pandas as pd
 import numpy as np
 import os
 
-def generate_production_data(reference_file="data/bank_churn.csv", output_file="data/production_data.csv", drift_level="medium"):
+def generate_drifted_data(
+    reference_file="data/bank_churn.csv",
+    output_file="data/production_data.csv",
+    drift_level="medium"
+):
     """
-    Génère des données de production avec un niveau de drift contrôlé.
-    drift_level: "none", "low", "medium", "high"
+    Génère des données de production avec drift artificiel
+    
+    drift_level:
+    - low    : bruit léger
+    - medium : décalage significatif
+    - high   : changement fort
     """
+
+    os.makedirs("data", exist_ok=True)
+
     if not os.path.exists(reference_file):
-        print(f"Erreur: {reference_file} non trouvé.")
+        print(f"❌ Erreur: {reference_file} non trouvé.")
         return
 
-    df = pd.read_csv(reference_file)
-    prod_df = df.sample(n=1000, replace=True).copy()
+    ref = pd.read_csv(reference_file)
+    prod = ref.copy()
 
-    # Simulation de drift
-    if drift_level == "low":
-        # Légère augmentation de l'âge
-        prod_df['Age'] = prod_df['Age'] + np.random.randint(0, 5, size=len(prod_df))
-    elif drift_level == "medium":
-        # Augmentation notable de l'âge et baisse du score de crédit
-        prod_df['Age'] = prod_df['Age'] + np.random.randint(5, 15, size=len(prod_df))
-        prod_df['CreditScore'] = prod_df['CreditScore'] - np.random.randint(20, 50, size=len(prod_df))
-    elif drift_level == "high":
-        # Changements massifs
-        prod_df['Age'] = prod_df['Age'] + np.random.randint(15, 30, size=len(prod_df))
-        prod_df['Balance'] = prod_df['Balance'] * 1.5
-        prod_df['CreditScore'] = prod_df['CreditScore'] - 100
+    np.random.seed(42)
 
-    # Nettoyage des valeurs hors limites
-    prod_df['Age'] = prod_df['Age'].clip(18, 100)
-    prod_df['CreditScore'] = prod_df['CreditScore'].clip(300, 850)
+    drift_map = {
+        "low": 0.05,
+        "medium": 0.15,
+        "high": 0.30
+    }
 
-    # Sauvegarde
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    prod_df.to_csv(output_file, index=False)
-    print(f"✅ Données de production générées ({drift_level} drift) dans {output_file}")
+    intensity = drift_map.get(drift_level, 0.15)
+
+    drift_features = [
+        "CreditScore",
+        "Age",
+        "Balance",
+        "EstimatedSalary"
+    ]
+
+    for col in drift_features:
+        if col in prod.columns:
+            std = prod[col].std()
+            prod[col] = prod[col] + np.random.normal(
+                loc=std * intensity,
+                scale=std * intensity,
+                size=len(prod)
+            )
+
+    # Nettoyage minimal pour rester réaliste
+    if 'Age' in prod.columns:
+        prod['Age'] = prod['Age'].clip(18, 100)
+    if 'CreditScore' in prod.columns:
+        prod['CreditScore'] = prod['CreditScore'].clip(300, 850)
+
+    prod.to_csv(output_file, index=False)
+
+    print(f"✅ Données de production générées avec drift '{drift_level}'")
+    print(f"📁 Fichier : {output_file}")
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--level", choices=["none", "low", "medium", "high"], default="medium")
+    parser.add_argument("--level", choices=["low", "medium", "high"], default="medium")
     args = parser.parse_args()
     
-    generate_production_data(drift_level=args.level)
+    generate_drifted_data(drift_level=args.level)
