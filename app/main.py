@@ -10,6 +10,50 @@ import traceback
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 from app.models import CustomerFeatures, PredictionResponse, HealthResponse
 from app.drift_detect import detect_drift
+from functools import lru_cache
+import hashlib
+import json
+
+# -------------------------------------------------
+# Helpers & Cache Logic
+# -------------------------------------------------
+def hash_features(features_dict: dict) -> str:
+    """Crée un hash unique pour les features"""
+    return hashlib.md5(
+        json.dumps(features_dict, sort_keys=True).encode()
+    ).hexdigest()
+
+@lru_cache(maxsize=1000)
+def predict_cached(features_hash: str, features_json: str):
+    """Effectue la prédiction avec mise en cache LRU"""
+    features_dict = json.loads(features_json)
+    
+    if model is None:
+        return None
+
+    input_data = np.array([[ 
+        features_dict["CreditScore"],
+        features_dict["Age"],
+        features_dict["Tenure"],
+        features_dict["Balance"],
+        features_dict["NumOfProducts"],
+        features_dict["HasCrCard"],
+        features_dict["IsActiveMember"],
+        features_dict["EstimatedSalary"],
+        features_dict["Geography_Germany"],
+        features_dict["Geography_Spain"]
+    ]])
+
+    proba = model.predict_proba(input_data)[0, 1]
+    prediction = int(proba > 0.5)
+    
+    risk = "Low" if proba < 0.3 else "Medium" if proba < 0.7 else "High"
+    
+    return {
+        "churn_probability": round(float(proba), 4),
+        "prediction": prediction,
+        "risk_level": risk
+    }
 
 # -------------------------------------------------
 # Logging & Application Insights
@@ -76,40 +120,29 @@ def predict(features: CustomerFeatures):
         raise HTTPException(status_code=503, detail="Modèle indisponible")
 
     try:
-        X = np.array([[ 
-            features.CreditScore,
-            features.Age,
-            features.Tenure,
-            features.Balance,
-            features.NumOfProducts,
-            features.HasCrCard,
-            features.IsActiveMember,
-            features.EstimatedSalary,
-            features.Geography_Germany,
-            features.Geography_Spain
-        ]])
-
-        proba = model.predict_proba(X)[0][1]
-        prediction = int(proba > 0.5)
-
-        risk = "Low" if proba < 0.3 else "Medium" if proba < 0.7 else "High"
+        features_dict = features.model_dump()
+        features_hash = hash_features(features_dict)
+        features_json = json.dumps(features_dict)
+        
+        # Utilisation du cache
+        result = predict_cached(features_hash, features_json)
+        
+        if result is None:
+             raise HTTPException(status_code=503, detail="Erreur interne du modèle")
 
         logger.info(
-            "prediction",
+            f"prediction - hash: {features_hash[:8]}",
             extra={
                 "custom_dimensions": {
                     "event_type": "prediction",
-                    "probability": float(proba),
-                    "risk_level": risk
+                    "features_hash": features_hash,
+                    "probability": result["churn_probability"],
+                    "risk_level": result["risk_level"]
                 }
             }
         )
 
-        return {
-            "churn_probability": round(float(proba), 4),
-            "prediction": prediction,
-            "risk_level": risk
-        }
+        return result
 
     except Exception as e:
         logger.error(f"Erreur prediction : {e}")
