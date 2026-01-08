@@ -23,4 +23,5 @@ requests==2.31.0
 
 # Monitoring & Drift Detection
 opencensus-ext-azure==1.1.9
+opencensus-ext-requests==0.12.1
 scipy==1.11.4
