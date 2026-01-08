@@ -18,7 +18,7 @@ def detect_drift(reference_file, production_file, threshold=0.05, output_dir="dr
     os.makedirs(output_dir, exist_ok=True)
 
     if not os.path.exists(reference_file) or not os.path.exists(production_file):
-        print("Erreur: Fichiers de données manquants pour la détection de drift.")
+        print(f"⚠️ Fichiers manquants : Reference={os.path.exists(reference_file)}, Production={os.path.exists(production_file)}")
         return {}
 
     ref = pd.read_csv(reference_file)

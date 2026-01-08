@@ -10,9 +10,10 @@ COPY requirements.txt .
 # Installer les dependances
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code de l'application
+# Copier le code de l'application et les données
 COPY app/ ./app/
 COPY model/ ./model/
+COPY data/ ./data/
 
 # Exposer le port
 EXPOSE 8000

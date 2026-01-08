@@ -161,6 +161,15 @@ def check_drift(threshold: float = 0.05):
         )
 
         drifted = [f for f, r in results.items() if r["drift_detected"]]
+        
+        if not results:
+             return {
+                "status": "warning",
+                "message": "Aucune donnée de production trouvée pour le test de drift.",
+                "features_analyzed": 0,
+                "features_drifted": 0
+            }
+
         drift_pct = len(drifted) / len(results) * 100
 
         logger.info(
