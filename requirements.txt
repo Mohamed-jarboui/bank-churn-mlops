@@ -28,3 +28,7 @@ opencensus-ext-requests==0.8.0
 scipy==1.11.4
 matplotlib==3.8.2
 seaborn==0.13.0
+
+# User Interface
+streamlit==1.28.2
+plotly==5.18.0
