@@ -63,20 +63,20 @@ jobs:
               --name ${{ env.API_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --set-env-vars APP_TYPE=api \
               --query properties.configuration.ingress.fqdn
             echo "✅ Backend (API) mis à jour."
       - name: Deploy Streamlit UI (Frontend)
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Vérification/Création de l'App UI avec la commande Streamlit
+            # Simplification : Utilisation de APP_TYPE pour diriger l'EntryPoint
             az containerapp update \
               --name ${{ env.UI_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-              --set-env-vars API_URL=https://$(az containerapp show -n ${{ env.API_APP_NAME }} -g ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv) \
-              --container-name streamlit-ui \
-              --args "streamlit" "run" "streamlit_app.py" "--server.port=8501" "--server.address=0.0.0.0"
+              --set-env-vars APP_TYPE=ui API_URL=https://$(az containerapp show -n ${{ env.API_APP_NAME }} -g ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv) \
+              --container-name streamlit-ui
             echo "✅ Frontend (UI) mis à jour."
       - name: Deployment URLs
         run: |
