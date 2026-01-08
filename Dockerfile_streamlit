@@ -1,0 +1,18 @@
+# Image Python légère
+FROM python:3.9-slim
+
+# Repertoire de travail
+WORKDIR /app
+
+# Installation des dépendances
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copie de l'application Streamlit
+COPY streamlit_app.py .
+
+# Streamlit utilise le port 8501 par défaut
+EXPOSE 8501
+
+# Configuration Streamlit pour la production
+ENTRYPOINT ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]

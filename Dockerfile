@@ -10,10 +10,11 @@ COPY requirements.txt .
 # Installer les dependances
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code de l'application et les données
+# Copier le code de l'application, les données et l'UI
 COPY app/ ./app/
 COPY model/ ./model/
 COPY data/ ./data/
+COPY streamlit_app.py .
 
 # Exposer le port
 EXPOSE 8000

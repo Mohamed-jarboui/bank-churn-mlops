@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import json
 import plotly.graph_objects as go
+import os
 
 # Configuration de la page
 st.set_page_config(
@@ -10,8 +11,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# API URL (Azure Production)
-API_URL = "https://bank-churn.agreeablebay-fa140be5.swedencentral.azurecontainerapps.io"
+# API URL (Dynamic from env or fallback to hardcoded)
+API_URL = os.getenv("API_URL", "https://bank-churn.agreeablebay-fa140be5.swedencentral.azurecontainerapps.io")
 
 st.title("🏦 Bank Customer Churn Predictor")
 st.markdown("""

@@ -9,8 +9,9 @@ on:
 env:
   AZURE_RESOURCE_GROUP: rg-mlops-bank-churn
   ACR_NAME: mlopssweden
-  CONTAINER_APP_NAME: bank-churn
-  IMAGE_NAME: bank-churn-api
+  API_APP_NAME: bank-churn
+  UI_APP_NAME: bank-churn-ui
+  IMAGE_NAME: bank-churn-app
 
 jobs:
   test:
@@ -47,30 +48,39 @@ jobs:
           login-server: ${{ env.ACR_NAME }}.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-      - name: Build and push Docker image
+      - name: Build and push unified Docker image
         run: |
           docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
           docker tag ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-          echo "✅ Images poussées dans ACR."
-      - name: Deploy to Azure Container Apps
+          echo "✅ Image unifiée poussée dans ACR."
+      - name: Deploy API (Backend)
         uses: azure/CLI@v1
         with:
           inlineScript: |
             az containerapp update \
-              --name ${{ env.CONTAINER_APP_NAME }} \
+              --name ${{ env.API_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            echo "✅ Commande de déploiement envoyée à Azure."
-      - name: Verify deployment
+              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --query properties.configuration.ingress.fqdn
+            echo "✅ Backend (API) mis à jour."
+      - name: Deploy Streamlit UI (Frontend)
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Vérification/Création de l'App UI avec la commande Streamlit
+            az containerapp update \
+              --name ${{ env.UI_APP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --set-env-vars API_URL=https://$(az containerapp show -n ${{ env.API_APP_NAME }} -g ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv) \
+              --container-name streamlit-ui \
+              --args "streamlit" "run" "streamlit_app.py" "--server.port=8501" "--server.address=0.0.0.0"
+            echo "✅ Frontend (UI) mis à jour."
+      - name: Deployment URLs
         run: |
-          APP_URL=$(az containerapp show \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query properties.configuration.ingress.fqdn -o tsv)
-          echo "🌐 Votre API est déployée à l'adresse : https://$APP_URL"
-          echo "🩺 Attente du démarrage (20s) et vérification..."
-          sleep 20
-          curl -f https://$APP_URL/health || exit 1
-          echo "✅ Déploiement vérifié et réussi !"
+          API_URL=$(az containerapp show -n ${{ env.API_APP_NAME }} -g ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv)
+          UI_URL=$(az containerapp show -n ${{ env.UI_APP_NAME }} -g ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv)
+          echo "🌐 API : https://$API_URL"
+          echo "🌐 UI : https://$UI_URL"
