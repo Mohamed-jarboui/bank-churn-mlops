@@ -1,0 +1,31 @@
+__pycache__/
+*.pyc
+venv/
+.env
+mlruns/
+*.log
+.DS_Store
+.vscode/
+confusion_matrix.png
+feature_importance.png
+# Secrets (NE JAMAIS commiter)
+*.secret
+*.key
+*.pem
+credentials*.json
+resultat.txt
+azure-credentials.json
+# Logs de build/tests
+acr_log.txt
+env_log.txt
+app_url.txt
+law_id.txt
+law_key.txt
+push_log.txt
+push_log_v1.txt
+push_log_latest.txt
+test_acr.txt
+acr_log_sw.txt
+acr_log_uk.txt
+env_log_ne.txt
+acr_log_ne.txt
