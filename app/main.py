@@ -105,6 +105,14 @@ async def load_model():
 # -------------------------------------------------
 # Endpoints généraux
 # -------------------------------------------------
+@app.get("/")
+def read_root():
+    return {
+        "message": "Bank Churn Prediction API",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
 @app.get("/health", response_model=HealthResponse)
 def health():
     if model is None:
